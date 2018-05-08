@@ -39,17 +39,22 @@
 	
 	
 	<?php
+		//boolean to decide wheather to display link to logged in user's profile "My Lights" or not 
 		$profileDisplay = false;
 	
 		if(isset($_SESSION['currentId'])){
+			//if user is logged in, display sign out option and display "My Lights" button 
 			$loggedInAs = $_SESSION['currentId'];
 			$signStatus = "Sign out";
+			//sign out link will pop up a new tab to confirm sign out
 			$href = "javascript:window.open('signOut.php','mywindowtitle','width=1000,height=400')";
 			$profileDisplay = true;
 		}else{
+			//if user is not logged in, display sign in
 			$signStatus = "Sign in";
 			$href = "login.php";
 		}
+		//$_GET will get value of corresponding variable from URL 
 		$serverStr = $_GET['server'];
 		$searchKey = $_GET['keyword'];
 		$userKey = str_replace(' ', '', $searchKey);
@@ -67,12 +72,18 @@
 		$summonerId = "";
 		$summonerIcon = "";
 		$summonerName = "";
+		//getenv will retrive enviornmental variables
 		$apiKey = getenv('RIOT_API');
 		$version = getenv('CLIENT_VERSION');
 		
+		/*
+			curl is used to check if summoner name with exact searchKey is registered in leaguelights
+			and to access user database, input has to convert into summonerId
+		*/
 		$serverInfo = "https://" . $serverStr;
 		$userInfo = $serverInfo . ".api.riotgames.com/lol/summoner/v3/summoners/by-name/" .$userKey. "?api_key=" .$apiKey;
 		
+		//curl initialize with request url 
 		$ch = curl_init();
 		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -83,7 +94,7 @@
 		$obj = json_decode($userResult);
 		
 		
-		
+		//if output object from the curl has property 'id' that means LeagueLights has user with same name as searchKey
 		if (property_exists($obj, 'id')){
 			$summonerId = $obj->{'id'};
 			$summonerName = $obj->{'name'};
@@ -94,6 +105,7 @@
 		$dbPass = getenv('RDS_PASSWORD');
 		$dbConn = 'mysql:host='.$dbHost.';dbname='.$serverStr.';charset=utf8mb4';
 
+		//create new php database object with credential information
 		$conn = new \PDO( $dbConn,
 						$dbUser,
 						$dbPass,
@@ -105,10 +117,12 @@
 						);
 		
 		if (!empty($summonerId)){
+			//if output object from the curl has property 'id' display the user's profile 
 			$idHandle = $conn->prepare("SELECT SummonerId from user where SummonerId=?");
 			$idHandle->bindParam(1, $summonerId, PDO::PARAM_INT);
 			$idHandle->execute();
 			if($idHandle->rowCount()>0){
+				//user's profile display contains their summoner icon, summoner level, and number of videos they uploaded to LeagueLights
 				$userExist = true;
 				$summonerIcon = $obj->{'profileIconId'};
 				$summonerLevel = $obj->{'summonerLevel'};
@@ -118,12 +132,15 @@
 				$numVideos = $numVideos->rowCount();
 			}
 		}			
-						
+		
+		//display all videos with title that contains searchKey
 		$srcHandle = $conn->prepare("SELECT Id, Uploader from video where Title LIKE ?");
 		$srcHandle->bindParam(1, $searchKey, PDO::PARAM_STR);
 		$srcHandle->execute();
 		$likedHandle = $conn->prepare("SELECT * from likes where likedBy = ? AND videoId = ?");
+		//for each videos with title that contains searchKey, store video link to $videoSrc array, uploader name to $uploader array, and video id to $video array
 		foreach ($srcHandle as $value){
+			//files in aws buckets can be easily accessed with just https request
 			$src = "https://s3-ca-central-1.amazonaws.com/".$serverStr."-vid/".$value['Uploader']."/".$value['Id'];
 			array_push($videoSrc, $src);
 			array_push($uploader, $value['Uploader']);
@@ -138,6 +155,7 @@
 			}
 		}		
 		
+		//if there is uploaders, need to convert summonerId from database to user's current in game name 
 		if (count($uploader)>0){
 			$ch = curl_init();
 			curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
@@ -181,6 +199,7 @@
 		var likedBy = JSON.parse('<?php echo $likedJson; ?>');
 		var counter = videos.length;
 		
+		//function to addUser profile if it exist 
 		function addUserElement(){
 			var userName = "<?php echo $summonerName; ?>";
 			var numVideos = "<?php echo $numVideos; ?>";
@@ -233,6 +252,7 @@
 			user.appendChild(aTag);
 		}
 	
+		//add videos if they exist
 		function addVidElement(vid, vidTitle, name, like, videoId, liked){
 			var divider = document.createElement("form");
 			divider.setAttribute("class", "row mb-4");
@@ -299,7 +319,7 @@
 		}
 	
 		window.onload = function() {
-			
+			// sign in/out display and its corresponding link 
 			var sign = "<?php echo $signStatus; ?>";
 			var signInfo = document.getElementById("sign");
 			var link = document.createElement("a");
@@ -308,6 +328,7 @@
 			link.innerHTML = sign;
 			signInfo.appendChild(link);
 			
+			//display "My Lights" and its link 
 			if ("<?php echo $profileDisplay; ?>"){
 				var showProfile = document.getElementById("profile");
 				var profileAnchor = document.createElement("a");
@@ -316,18 +337,20 @@
 				profileAnchor.innerHTML = "My Lights";
 				showProfile.appendChild(profileAnchor);
 			}
-
+			
+			//if there's a user with the corresponding searchKey, display the user profile
 			if ("<?php echo $userExist; ?>"){
 				addUserElement();
 			}
 
-			
+			//if there's videos with the corresponding searchKey, display videos 
 			if	(counter>0){
 				for(var i=0;i<counter;i++){
 					addVidElement(videos[i], titles[i], uploaderName[i], likes[i], videoId[i], likedBy[i]);
 				}
 			}
 			
+			//if there's no videos with the corresponding searchKey and no user with the searchKey, display result not found message
 			if (counter == 0 && !("<?php echo $userExist; ?>")){
 				var text = document.createElement('h1');
 				text.setAttribute("class", "text-center");

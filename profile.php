@@ -34,10 +34,12 @@
 
   <body>
 	<?php
+		//when page is opened via its url, most likely user is not signed in, so redirect to login page 
 		if(!isset($_SESSION['currentId'])){
 			header("Location:login.php");
 			exit;
 		}else{
+			//currently logged in user's summonerId will be used to retrive user's information
 			$loggedInAs = $_SESSION["currentId"];
 			//serverStr needs other ways to set depends on region later on
 			$serverStr = (isset($_SESSION["currentServer"])) ? $_SESSION['currentServer'] : "na1";
@@ -51,6 +53,7 @@
 		$apiKey = getenv('RIOT_API');
 		$version = getenv('CLIENT_VERSION');
 		
+		//curl request url 
 		$summonerInfo = "https://" . $serverStr;
 		$summonerRank = $summonerInfo . ".api.riotgames.com/lol/league/v3/positions/by-summoner/".$loggedInAs."?api_key=".$apiKey;
 		$summonerInfo .= ".api.riotgames.com/lol/summoner/v3/summoners/".$loggedInAs."?api_key=".$apiKey;
@@ -73,12 +76,15 @@
 		$rank = json_decode($rankResult);
 		
 		if(!empty($rank)){
+			//if user has rank, display tier, rank, and summonerLevel
 			$rank = $rank[0]->{'tier'}." ". $rank[0]->{'rank'}."<br>Level ".$summoner->{'summonerLevel'};
 		}else{
+			//else just display summonerLevel 
 			$rank = "Level ".$summoner->{'summonerLevel'};
 		}
 
 		
+		//retrive summonerIcon from ddragon.leagueoflegends.com
 		$profileIcon = $summoner->{'profileIconId'};
 		$iconLink = "http://ddragon.leagueoflegends.com/cdn/".$version."/img/profileicon/".$profileIcon.".png";
 		
@@ -96,17 +102,20 @@
 								\PDO::ATTR_PERSISTENT => false
 								)
 			);
-						
+			
+			//retrive all the videos uploaded by the user
 			$srcHandle = $conn->prepare("SELECT Id, Uploader from video where Uploader LIKE ?");
 			$srcHandle->bindParam(1, $loggedInAs, PDO::PARAM_INT);
 			$srcHandle->execute();
 			
+			//retrive total number of likes the user recieved 
 			$likeHandle = $conn->prepare("SELECT * from likes where videoId LIKE ?");
 			$likeHandle->bindParam(1, $videoStr, PDO::PARAM_STR);
 			$likeHandle->execute();
 			
 			$numLike = $likeHandle->rowCount();
 			
+			//push video src into $src array and count number of videos the user uploaded 
 			foreach ($srcHandle as $value){
 				$src = "https://s3-ca-central-1.amazonaws.com/".$serverStr."-vid/".$value['Uploader']."/".$value['Id'];
 				array_push($videoSrc, $src);
@@ -116,10 +125,11 @@
 			$srcJson = json_encode($videoSrc);
 			$videoJson = json_encode($video);
 		
-		
+			
 			$titleHandle = $conn->prepare("SELECT Title from video where Uploader Like ?");
 			$titleHandle->bindParam(1, $loggedInAs, PDO::PARAM_INT);
 			$titleHandle->execute();
+			//retrive titles of videos in title array
 			foreach ($titleHandle as $value){
 				array_push($title, $value['Title']);
 			}
@@ -128,6 +138,7 @@
 			print($ex->getMessage());
 		}
 		
+		//LeagueLights has its own ranking system to encourage users to try to get as many likes and uploads
 		$userElo = floor(($numVid*5 + ($numLike-$numVid))/70);
 		$threshold = 3;
 		

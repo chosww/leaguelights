@@ -64,6 +64,7 @@
 		*/
 		}
 			
+		//curl request url 
 		$summonerInfo .= $serverStr;
 		$summonerInfo .= ".api.riotgames.com/lol/summoner/v3/summoners/by-name/".$sumName."?api_key=".$apiKey;
 			
@@ -91,12 +92,15 @@
 								\PDO::ATTR_PERSISTENT => false
 							)
 						);
+			//valid only if entered summoner name exist in League of Legends
 			if(property_exists($obj, 'id')){
 				$sumId = $obj->{'id'};
+				//query to check if user with the summoner id is already registered in LeagueLights
 				$idHandle = $conn->prepare("SELECT SummonerId from user where SummonerId = ?");
 				$idHandle->bindParam(1, $sumId, PDO::PARAM_INT);
 				$idHandle->execute();
 				
+				//query to check if user with the name is already registered in LeagueLights
 				$nameHandle = $conn->prepare("SELECT Name from user where Name = ?");
 				$nameHandle->bindParam(1, $userName, PDO::PARAM_STR);
 				$nameHandle->execute();
@@ -106,7 +110,7 @@
 				}else if($idHandle->rowCount()<=0 && $nameHandle->rowCount()>0){
 					$message = "The user name is already used"; 
 				}else if($idHandle->rowCount()<=0 && $nameHandle->rowCount()<=0){
-						
+					//if the user information is not registered and valid, register user with provided inputs
 					$registerHandle = $conn->prepare("INSERT INTO user (SummonerId, Name, Password, Email) VALUES (?, ?, ?, ?)");
 					$registerHandle->bindParam(1, $sumId, PDO::PARAM_INT);
 					$registerHandle->bindParam(2, $userName, PDO::PARAM_STR);
@@ -117,12 +121,14 @@
 					$bucketName = $serverStr.'-vid';
 					$folderName = $sumId.'/';
 					
+					//s3 bucket access with AWS S3Client 
 					$s3Client = new Aws\S3\S3Client([
 						'version' => 'latest',
 						'region' => 'ca-central-1'
 					]);
 					
 					try{
+						//create directory for the user 
 						$s3Client->putObject([
 							'Bucket' => $bucketName,
 							'Key' => $folderName,
@@ -132,7 +138,8 @@
 					}catch(Aws\Exception\S3Exception $e){
 						echo "There was an error creating user directory.\n";
 					}
-		
+					
+					//once completion of the sign up, user will be redirect to main page of LeagueLights
 					header("Location:index.php");
 					exit;
 				}
@@ -150,6 +157,7 @@
 	<script language='javascript' type='text/javascript'>
 		var message = '<?php echo $message;?>';
 		window.onload = function() {
+			//display error message 
 			var msg = document.getElementById("errorMsg");
 			msg.innerHTML = message;			
 		}
@@ -187,12 +195,14 @@
 					<div class="row">
 						<div class="col-lg-3"></div>
 						<h4 class="col-lg-2 text-center">Username:</h4>
+						<!--user name must be at least 6 characters-->
 						<input class="col-lg-4" type="text" name="ign" minlength=6 maxlength=16 required>
 						<div class="col-lg-3"></div>
 					</div>
 					<br>
 					<div class="row">
 						<div class="col-lg-3"></div>
+						<!--password must be at least 5 characters--> 
 						<h4 class="col-lg-2 text-center">Password:</h4>
 						<input class="col-lg-4" type="password" id="password" name="pswd" minlength=6 maxlength=64 required>
 						<div class="col-lg-3"></div>
@@ -205,6 +215,7 @@
 						<div class="col-lg-3"></div>
 					</div>
 					<script language='javascript' type='text/javascript'>
+						// function to check if password and confirmed password are equal
                         function check(input) {
                             if (input.value != document.getElementById('password').value) {
                                 input.setCustomValidity('Password Must be Matching.');
@@ -218,12 +229,14 @@
 					<div class ="row">
 						<div class="col-lg-3"></div>
 						<h4 class="col-lg-2 text-center">Summoner Name:</h4>
+						<!--user must register to LeagueLights with vaild summoner name-->
 						<input class="col-lg-4" type="text" name="sumName" placeholder="Your League of Legends' name" required>
 						<div class="col-lg-3"></div>
 					</div>
 					<br>
 					<div class="row">
 						<div class="col-lg-3"></div>
+						<!-- sns will be implemented soon to confirm user-->
 						<h4 class="col-lg-2 text-center">Email:</h4>
 						<input class="col-lg-4" type="email" name="email" required>
 						<div class="col-lg-3"></div>

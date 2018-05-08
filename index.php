@@ -57,6 +57,7 @@
     </nav>
 	<div class="container py-5">
 		<div class="row">
+			<!-- leaguelights logo will adjust its size depends on viw points -->
 			<div class="col d-none d-lg-block">
 				<img class="d-block mx-auto" src="img/leaguelights1024.png">
 			</div>
@@ -72,7 +73,9 @@
 			<div class="col-lg-6">
 				<form>
 					<div class="row">
+						<!-- searchKey will be used to find if a user with exact searchKey or video's title that contains searchKey exist-->
 						<input class="col-lg-7" type="text" name="searchKey" required>
+						<!--currently only north america server is available -->
 						<select class="col-lg-2" id="region" name="server">
 							<option>NA</option>
 							<!--<option>KR</option>
@@ -104,18 +107,24 @@
 
 
 <?php
-	
+	//boolean to decide wheather to display link to logged in user's profile "My Lights" or not 
 	$profileDisplay = false;
 	
+	
 	if(isset($_SESSION['currentId'])){
+		//if user is logged in, display sign out option and display "My Lights" button 
 		$loggedInAs = $_SESSION['currentId'];
 		$signStatus = "Sign out";
+		//sign out link will pop up a new tab to confirm sign out
 		$href = "javascript:window.open('signOut.php','mywindowtitle','width=1000,height=400')";
 		$profileDisplay = true;
 	}else{
+		//if user is not logged in, display sign in
 		$signStatus = "Sign in";
 		$href = "login.php";
 	}
+	
+	//link to search result with searchKey via get request
 	$url = "Location:searchResult.php?server=";
 	
 	if (isset($_GET['submit'])) {
@@ -178,6 +187,7 @@
 ?>
 	<script>
 		window.onload = function() {	
+			// sign in/out display and its corresponding link 
 			var sign = "<?php echo $signStatus; ?>";
 			var signInfo = document.getElementById("sign");
 			var link = document.createElement("a");
@@ -186,7 +196,7 @@
 			link.innerHTML = sign;
 			signInfo.appendChild(link);
 			
-			
+			//display "My Lights" and its link 
 			if ("<?php echo $profileDisplay; ?>"){
 				var showProfile = document.getElementById("profile");
 				var profileAnchor = document.createElement("a");

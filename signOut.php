@@ -1,5 +1,6 @@
 <?php
 	session_start();
+	// if user confirms signout, unset currentId
 	if (isset($_GET['submit'])) {
 		unset($_SESSION['currentId']);
 		echo "<script>window.close();</script>";
